@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SiteSentinel AI — Unified Web Security & Performance Auditor</title>
+  <meta name="description" content="Unified website audit platform combining OWASP security checks, Core Web Vitals performance, k6 load testing, and Gemma AI scoring out of 100." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Chart.js for beautiful, responsive graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Navigation Header ──────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>SiteSentinel <span>AI</span></h1>
+          <p class="brand-sub">Unified Security & Performance Auditor</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="pill-badge pill-badge--ai">
+          <span class="pulse-dot"></span> Gemma 27B AI
+        </span>
+        <span class="pill-badge pill-badge--status">v2.0 Unified Engine</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main Content Container ─────────────────────────────────── -->
+  <main class="main-container">
+
+    <!-- ── Scan Input Section ───────────────────────────────────── -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <h2 class="hero-title">Audit Security, Speed & Reliability in One Click</h2>
+        <p class="hero-desc">Deep inspection of security headers, OWASP vulnerabilities, Core Web Vitals, and load resilience — scored and analyzed by AI.</p>
+      </div>
+
+      <div class="scan-card">
+        <form id="scan-form">
+          <div class="input-wrapper">
+            <div class="input-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+            </div>
+            <input
+              id="url-input"
+              type="text"
+              placeholder="Enter website URL (e.g. https://example.com)"
+              autocomplete="url"
+              required
+            />
+            <button id="scan-btn" type="submit" class="btn-run">
+              <span class="btn-text">Run Audit</span>
+              <span class="btn-spinner" hidden></span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Quick Pick URLs -->
+        <div class="quick-picks">
+          <span class="quick-label">Try example:</span>
+          <button type="button" class="quick-pill" data-url="https://example.com">example.com</button>
+          <button type="button" class="quick-pill" data-url="https://github.com">github.com</button>
+          <button type="button" class="quick-pill" data-url="https://cloudflare.com">cloudflare.com</button>
+          <button type="button" class="quick-pill" data-url="https://wikipedia.org">wikipedia.org</button>
+        </div>
+
+        <!-- Scan Status Banner -->
+        <div id="scan-status-box" class="status-box" hidden>
+          <div class="status-indicator">
+            <div class="status-spinner"></div>
+            <div class="status-text-group">
+              <p id="scan-status" class="status-title" aria-live="polite">Initializing audit...</p>
+              <p id="scan-status-detail" class="status-detail">Running security probes, PSI Lighthouse & k6 load tests</p>
+            </div>
+          </div>
+          <div class="stepper-dots">
+            <span class="step-dot active" title="HTTP & Headers">1</span>
+            <span class="step-dot" title="Core Web Vitals">2</span>
+            <span class="step-dot" title="Load Stress">3</span>
+            <span class="step-dot" title="AI Scoring">4</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Results Section ──────────────────────────────────────── -->
+    <div id="results" class="results-area" hidden>
+
+      <!-- ── Error Alert Banner (if partial errors occurred) ────── -->
+      <div id="scan-errors-container"></div>
+
+      <!-- ── SCORES HERO: Dual 100 Scores & Health ─────────────── -->
+      <section class="score-hero-grid">
+        <!-- Security Score Card -->
+        <div class="score-card score-card--security">
+          <div class="score-card-header">
+            <div class="score-card-icon sec-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Security Score</h3>
+              <p class="score-meta">Headers, Cookies, SSL, Vulnerabilities</p>
+            </div>
+          </div>
+
+          <div class="score-display">
+            <div class="circular-chart-wrapper">
+              <svg viewBox="0 0 36 36" class="circular-chart" id="sec-chart-svg">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                <path id="sec-progress" class="circle circle--cyan" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              </svg>
+              <div class="chart-text-overlay">
+                <span id="score-sec-val" class="score-num">0</span>
+                <span class="score-denom">/100</span>
+              </div>
+            </div>
+            <div class="score-verdict" id="sec-verdict">
+              <span class="badge" id="sec-badge">Analyzing</span>
+              <p id="sec-findings-summary">0 vulnerabilities found</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance Score Card -->
+        <div class="score-card score-card--performance">
+          <div class="score-card-header">
+            <div class="score-card-icon perf-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Performance Score</h3>
+              <p class="score-meta">Lighthouse, Core Web Vitals, Latency</p>
+            </div>
+          </div>
+
+          <div class="score-display">
+            <div class="circular-chart-wrapper">
+              <svg viewBox="0 0 36 36" class="circular-chart" id="perf-chart-svg">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                <path id="perf-progress" class="circle circle--amber" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              </svg>
+              <div class="chart-text-overlay">
+                <span id="score-perf-val" class="score-num">0</span>
+                <span class="score-denom">/100</span>
+              </div>
+            </div>
+            <div class="score-verdict" id="perf-verdict">
+              <span class="badge" id="perf-badge">Analyzing</span>
+              <p id="perf-metrics-summary">Lighthouse & TTFB metrics</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overall Health Card -->
+        <div class="score-card score-card--overall">
+          <div class="score-card-header">
+            <div class="score-card-icon health-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Overall Site Health</h3>
+              <p class="score-meta" id="target-display">https://...</p>
+            </div>
+          </div>
+
+          <div class="overall-content">
+            <div class="overall-main">
+              <div class="overall-health-badge" id="overall-health-badge">CRITICAL</div>
+              <div class="overall-score-pill">
+                Combined Score: <strong id="score-overall-val">0</strong>/100
+              </div>
+            </div>
+            <div class="overall-meta-row">
+              <div class="meta-item">
+                <span class="meta-label">Duration</span>
+                <span class="meta-val" id="scan-time-val">0.0s</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">HTTPS</span>
+                <span class="meta-val" id="https-val">Yes</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Status</span>
+                <span class="meta-val" id="http-status-val">200 OK</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── MEANINGFUL GRAPHS SECTION ──────────────────────────── -->
+      <section class="section-container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Visual Audit Analytics & Insights</h2>
+            <p class="section-subtitle">Real-time telemetry comparing site performance against Google thresholds and security distribution.</p>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <!-- Graph 1: Web Vitals vs Industry Thresholds -->
+          <div class="chart-box">
+            <div class="chart-header">
+              <h4>Core Web Vitals & Latency Benchmark</h4>
+              <span class="chart-tag">Lower is Better</span>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="vitalsChart"></canvas>
+            </div>
+            <p class="chart-caption">Measures TTFB, FCP, LCP, and Speed Index compared to Google's "Good" baseline standards.</p>
+          </div>
+
+          <!-- Graph 2: Radar Score Balance -->
+          <div class="chart-box">
+            <div class="chart-header">
+              <h4>Audit Balance Radar</h4>
+              <span class="chart-tag">0 - 100 Scale</span>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="radarChart"></canvas>
+            </div>
+            <p class="chart-caption">Multi-dimensional balance across Security, Speed, Vitals, Header Hygiene, and Load Resilience.</p>
+          </div>
+
+          <!-- Graph 3: Security Findings by Severity -->
+          <div class="chart-box">
+            <div class="chart-header">
+              <h4>Security Findings Breakdown</h4>
+              <span class="chart-tag">By Severity</span>
+            </div>
+            <div class="chart-canvas-wrapper chart-canvas-wrapper--donut">
+              <canvas id="securityChart"></canvas>
+            </div>
+            <p class="chart-caption">Distribution of detected issues across High, Medium, Low, and Info severities.</p>
+          </div>
+
+          <!-- Graph 4: Load & Stress Profile -->
+          <div class="chart-box">
+            <div class="chart-header">
+              <h4>Load Test Latency & Throughput</h4>
+              <span class="chart-tag">k6 Simulation</span>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="loadChart"></canvas>
+            </div>
+            <p class="chart-caption">Concurrent user throughput (req/s) and latency percentiles (p50 vs p95).</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── AI ANALYSIS & HOW TO IMPROVE BOTH SCORES ───────────── -->
+      <section class="section-container">
+        <div class="section-header">
+          <div>
+            <div class="ai-badge-row">
+              <span class="ai-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg> Gemma 27B AI Audit Synthesis</span>
+              <span id="ai-model-tag" class="model-tag">gemma-4-26b-a4b-it</span>
+            </div>
+            <h2 class="section-title">AI Assessment & Optimization Roadmap</h2>
+            <p class="section-subtitle">Intelligent evaluation and actionable steps to elevate both Security and Performance scores to 100.</p>
+          </div>
+        </div>
+
+        <!-- AI Executive Summary Banner -->
+        <div class="ai-summary-card">
+          <div class="ai-summary-quote">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <p id="ai-summary-text">AI is synthesizing findings...</p>
+          </div>
+        </div>
+
+        <!-- Dual Improvement Columns -->
+        <div class="improvement-columns">
+          <!-- How to Improve Security Score -->
+          <div class="improvement-card improvement-card--sec">
+            <div class="improvement-header">
+              <div class="imp-icon imp-icon--sec">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <div>
+                <h3>How to Improve Security Score</h3>
+                <p>Specific header rules, cookies, and hardening steps</p>
+              </div>
+            </div>
+            <ul id="sec-improvement-list" class="roadmap-list">
+              <li>Analyzing security posture...</li>
+            </ul>
+          </div>
+
+          <!-- How to Improve Performance Score -->
+          <div class="improvement-card improvement-card--perf">
+            <div class="improvement-header">
+              <div class="imp-icon imp-icon--perf">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+              </div>
+              <div>
+                <h3>How to Improve Performance Score</h3>
+                <p>Core Web Vitals, asset caching, and latency reductions</p>
+              </div>
+            </div>
+            <ul id="perf-improvement-list" class="roadmap-list">
+              <li>Analyzing performance bottlenecks...</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Top Priority Issues -->
+        <div class="top-issues-container">
+          <h3 class="top-issues-title">Prioritized Critical Findings & Immediate Fixes</h3>
+          <div id="top-issues-grid" class="top-issues-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ── DEEP-DIVE METRICS & NODE TABS ──────────────────────── -->
+      <section class="section-container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Audit Metrics & Node Inspector</h2>
+            <p class="section-subtitle">Granular technical data collected from HTTP headers, cookies, Lighthouse, and load engines.</p>
+          </div>
+        </div>
+
+        <!-- Tab Controls -->
+        <div class="tab-nav">
+          <button class="tab-btn active" data-tab="tab-security">Security Findings & Headers</button>
+          <button class="tab-btn" data-tab="tab-performance">Performance & Web Vitals</button>
+          <button class="tab-btn" data-tab="tab-load">Load & Stress Testing</button>
+          <button class="tab-btn" data-tab="tab-raw">Raw Results JSON</button>
+        </div>
+
+        <!-- Tab 1: Security -->
+        <div id="tab-security" class="tab-pane active">
+          <div class="tab-content-grid">
+            <div class="panel-box">
+              <div class="panel-header">
+                <h4>Security Findings & Vulnerabilities</h4>
+                <span id="findings-count-pill" class="counter-pill">0 Issues</span>
+              </div>
+              <ul id="security-findings-list" class="check-list">
+                <!-- Dynamically populated -->
+              </ul>
+            </div>
+
+            <div class="panel-box">
+              <div class="panel-header">
+                <h4>Response Headers Inspected</h4>
+              </div>
+              <div class="headers-wrapper">
+                <table class="metric-table" id="headers-table">
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Performance -->
+        <div id="tab-performance" class="tab-pane">
+          <div class="tab-content-grid">
+            <div class="panel-box">
+              <div class="panel-header">
+                <h4>Core Web Vitals & Diagnostics</h4>
+              </div>
+              <table class="metric-table" id="perf-table">
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="panel-box">
+              <div class="panel-header">
+                <h4>Network & Transfer Stats</h4>
+              </div>
+              <table class="metric-table" id="network-table">
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Load Testing -->
+        <div id="tab-load" class="tab-pane">
+          <div class="panel-box">
+            <div class="panel-header">
+              <h4>k6 Concurrent User Stress Metrics</h4>
+            </div>
+            <table class="metric-table" id="load-table">
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 4: Raw JSON -->
+        <div id="tab-raw" class="tab-pane">
+          <div class="panel-box">
+            <div class="panel-header">
+              <h4>Complete Audit JSON Contract</h4>
+              <button id="copy-json-btn" class="btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy JSON
+              </button>
+            </div>
+            <pre id="raw-json-viewer" class="code-block"></pre>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <p>SiteSentinel AI Auditor · Built for High-Assurance Web Engineering</p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

@@ -12,8 +12,27 @@ def run_zap_scan(url):
 
     output_directory = os.path.abspath("output")
 
+    zap_file = os.path.join(
+        output_directory,
+        "zap_results.json"
+    )
+
+    # Clean up any previous run's report so stale data is never reused
+    if os.path.exists(zap_file):
+        try:
+            os.remove(zap_file)
+        except Exception:
+            pass
+
+    import sys
+    import shutil
+
+    docker_bin = shutil.which("docker")
+    if not docker_bin:
+        print("[ZAP] Docker is not installed or not in PATH — skipping ZAP scan.")
+        return []
+
     command = [
-        "sudo",
         "docker",
         "run",
         "--rm",
@@ -29,23 +48,22 @@ def run_zap_scan(url):
         "-I"
     ]
 
+    # Prepend sudo on Linux/macOS if sudo is available and not running as root
+    if sys.platform != "win32" and shutil.which("sudo") and os.geteuid() != 0:
+        command = ["sudo"] + command
+
     print("\n[ZAP] Starting passive security scan...")
     print("[ZAP] This may take a minute...\n")
 
     try:
-        subprocess.run(
+        proc = subprocess.run(
             command,
-            check=False
+            check=False,
+            timeout=120
         )
-
     except Exception as error:
-        print(f"[ZAP] Failed to start: {error}")
+        print(f"[ZAP] Failed to run: {error}")
         return []
-
-    zap_file = os.path.join(
-        output_directory,
-        "zap_results.json"
-    )
 
     if not os.path.exists(zap_file):
         print("[ZAP] No JSON report was generated.")

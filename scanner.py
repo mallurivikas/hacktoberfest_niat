@@ -1,3 +1,16 @@
+"""
+scanner.py — Unified Web Security & Performance Auditor
+
+Integrates:
+  1. Collaborator's Security Checks (Headers, Cookies, SSL/TLS, OWASP ZAP Baseline)
+  2. HTTP & Performance Metrics (Response Time, Status, TTFB)
+  3. Google PageSpeed Insights & Lighthouse (LCP, FCP, Speed Index, TBT, CLS, Page Weight)
+  4. k6 Load & Stress Testing (p50/p95 Latency, RPS, Error Rate)
+  5. AI Intelligence (Gemma 27B / Gemini) for 0-100 Security & Performance Scoring
+     and actionable improvement roadmaps.
+"""
+
+import datetime
 import json
 import os
 import time
@@ -13,13 +26,19 @@ from zap_scanner import (
     deduplicate_findings
 )
 
+import perf_basic
+import perf_psi
+import load_k6
+import ai_gemini
 
-def scan_url(url):
+
+# ── HTTP Probe (from Collaborator) ─────────────────────────────────────────────
+
+def scan_url(url: str) -> dict:
     """
     Performs basic HTTP checks on the target URL.
+    Extracts headers, cookies, redirects, and reachability.
     """
-
-    # Add HTTPS automatically if protocol is missing
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
@@ -31,190 +50,93 @@ def scan_url(url):
             timeout=10,
             allow_redirects=True,
             headers={
-                "User-Agent": "SiteSentinel/0.1"
+                "User-Agent": "SiteSentinel/1.0 (Auditor; +https://github.com/)"
             }
         )
 
-        response_time = (
-            time.perf_counter() - start
-        ) * 1000
+        response_time = (time.perf_counter() - start) * 1000
 
-        # -----------------------------
         # Extract Cookies
-        # -----------------------------
-
         cookies = []
-
         for cookie in response.cookies:
             cookies.append({
                 "name": cookie.name,
                 "secure": cookie.secure,
-                "httponly": "HttpOnly" in cookie._rest,
-                "samesite": cookie._rest.get("SameSite")
+                "httponly": "HttpOnly" in getattr(cookie, "_rest", {}),
+                "samesite": getattr(cookie, "_rest", {}).get("SameSite")
             })
 
-        # -----------------------------
-        # Build HTTP Result
-        # -----------------------------
-
-        result = {
+        return {
             "target": url,
             "reachable": True,
             "status_code": response.status_code,
             "final_url": response.url,
             "https": response.url.startswith("https://"),
-            "response_time_ms": round(
-                response_time,
-                2
-            ),
-
-            "redirect_count": len(
-                response.history
-            ),
-
+            "response_time_ms": round(response_time, 2),
+            "redirect_count": len(response.history),
             "redirect_chain": [
-                {
-                    "status": redirect.status_code,
-                    "url": redirect.url
-                }
-                for redirect in response.history
+                {"status": r.status_code, "url": r.url}
+                for r in response.history
             ],
-
-            "headers": dict(
-                response.headers
-            ),
-
+            "headers": dict(response.headers),
             "cookies": cookies
         }
 
-        return result
-
     except requests.RequestException as error:
-
         return {
             "target": url,
             "reachable": False,
-            "error": str(error)
+            "error": str(error),
+            "final_url": url,
+            "https": url.startswith("https://"),
+            "headers": {},
+            "cookies": [],
+            "redirect_count": 0,
+            "redirect_chain": []
         }
 
 
-def run_security_scan(url):
+# ── Security Scan Pipeline ─────────────────────────────────────────────────────
+
+def run_security_scan(url: str, probe_result: dict = None) -> dict:
     """
     Runs the complete SiteSentinel security pipeline:
-
-    1. HTTP checks
-    2. Security header checks
-    3. Cookie checks
-    4. OWASP ZAP Baseline scan
-    5. Merge findings
-    6. Deduplicate findings
+    1. HTTP checks & Headers
+    2. Cookie security
+    3. OWASP ZAP Baseline scan (via Docker if available)
+    4. Deduplicate and summarize findings
     """
+    if probe_result is None:
+        probe_result = scan_url(url)
 
-    # =================================
-    # STEP 1 - Basic HTTP Scan
-    # =================================
-
-    print("[SiteSentinel] Running HTTP checks...")
-
-    result = scan_url(url)
-
-    # Website could not be reached
-    if not result.get("reachable"):
-
-        result["security_findings"] = []
-
-        result["scan_summary"] = {
+    if not probe_result.get("reachable"):
+        probe_result["security_findings"] = []
+        probe_result["scan_summary"] = {
             "manual_findings": 0,
             "zap_findings": 0,
-            "total_findings": 0
+            "total_findings": 0,
+            "severity_counts": {"high": 0, "medium": 0, "low": 0, "info": 0}
         }
+        return probe_result
 
-        return result
+    # 1. Header checks
+    header_findings = check_security_headers(probe_result.get("headers", {}))
 
-    print(
-        f"[SiteSentinel] Target reachable: "
-        f"{result['final_url']}"
-    )
+    # 2. Cookie checks
+    cookie_findings = check_cookie_security(probe_result.get("cookies", []))
 
-    # =================================
-    # STEP 2 - Header Checks
-    # =================================
+    manual_findings = header_findings + cookie_findings
 
-    print(
-        "[SiteSentinel] Checking "
-        "security headers..."
-    )
+    # 3. OWASP ZAP Baseline scan
+    zap_findings = []
+    try:
+        zap_findings = run_zap_scan(probe_result.get("final_url", url))
+    except Exception as exc:
+        print(f"[SiteSentinel] ZAP scan skipped/failed: {exc}")
 
-    header_findings = check_security_headers(
-        result["headers"]
-    )
-
-    # =================================
-    # STEP 3 - Cookie Checks
-    # =================================
-
-    print(
-        "[SiteSentinel] Checking "
-        "cookie security..."
-    )
-
-    cookie_findings = check_cookie_security(
-        result["cookies"]
-    )
-
-    # Combine manual findings
-    manual_findings = (
-        header_findings +
-        cookie_findings
-    )
-
-    print(
-        f"[SiteSentinel] Manual findings: "
-        f"{len(manual_findings)}"
-    )
-
-    # =================================
-    # STEP 4 - OWASP ZAP
-    # =================================
-
-    print(
-        "\n[SiteSentinel] Starting "
-        "OWASP ZAP Baseline scan..."
-    )
-
-    zap_findings = run_zap_scan(
-        result["final_url"]
-    )
-
-    print(
-        f"\n[SiteSentinel] ZAP findings: "
-        f"{len(zap_findings)}"
-    )
-
-    # =================================
-    # STEP 5 - Merge Findings
-    # =================================
-
-    all_findings = (
-        manual_findings +
-        zap_findings
-    )
-
-    # =================================
-    # STEP 6 - Deduplicate
-    # =================================
-
-    security_findings = deduplicate_findings(
-        all_findings
-    )
-
-    result["security_findings"] = (
-        security_findings
-    )
-
-    # =================================
-    # Scan Summary
-    # =================================
+    # 4. Merge and deduplicate
+    all_findings = manual_findings + (zap_findings or [])
+    security_findings = deduplicate_findings(all_findings)
 
     severity_counts = {
         "high": 0,
@@ -223,196 +145,150 @@ def run_security_scan(url):
         "info": 0
     }
 
-    for finding in security_findings:
+    for f in security_findings:
+        sev = (f.get("severity") or "info").lower()
+        if sev in severity_counts:
+            severity_counts[sev] += 1
 
-        severity = finding.get(
-            "severity",
-            "info"
-        ).lower()
-
-        if severity in severity_counts:
-            severity_counts[severity] += 1
-
-    result["scan_summary"] = {
-        "manual_findings": len(
-            manual_findings
-        ),
-
-        "zap_findings": len(
-            zap_findings
-        ),
-
-        "total_findings": len(
-            security_findings
-        ),
-
-        "severity_counts": (
-            severity_counts
-        )
+    probe_result["security_findings"] = security_findings
+    probe_result["scan_summary"] = {
+        "manual_findings": len(manual_findings),
+        "zap_findings": len(zap_findings or []),
+        "total_findings": len(security_findings),
+        "severity_counts": severity_counts
     }
 
-    return result
+    return probe_result
 
 
-def save_results(result):
+# ── Unified Scan (Performance + Security + AI) ────────────────────────────────
+
+def scan(url: str) -> dict:
     """
-    Saves final SiteSentinel security
-    results to JSON.
+    Runs the entire unified audit:
+      - Security checks & ZAP
+      - HTTP performance & PSI/Lighthouse
+      - k6 load test
+      - Gemma 27B AI scoring & improvement analysis
     """
+    wall_start = time.perf_counter()
+    errors = []
 
-    os.makedirs(
-        "output",
-        exist_ok=True
+    # Normalize protocol
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    # 1. Initial HTTP probe & Security Scan
+    print(f"[Auditor] Starting unified scan for {url}...")
+    security_res = run_security_scan(url)
+    if security_res.get("error"):
+        errors.append({"source": "security_probe", "message": security_res.get("error")})
+
+    # 2. Performance: Basic HTTP
+    print("[Auditor] Measuring HTTP response time and TTFB...")
+    perf = perf_basic.measure(url)
+    if perf.get("error"):
+        errors.append({"source": "perf_basic", "message": perf.pop("error")})
+    else:
+        perf.pop("error", None)
+
+    # 3. Performance: Google PageSpeed Insights / Lighthouse
+    print("[Auditor] Fetching Lighthouse & Core Web Vitals...")
+    psi = perf_psi.measure(url)
+    if psi.get("error"):
+        errors.append({"source": "perf_psi", "message": psi.pop("error")})
+    else:
+        psi.pop("error", None)
+    perf.update({k: v for k, v in psi.items() if v is not None})
+
+    # 4. Load & Stress Test (k6)
+    print("[Auditor] Running load test...")
+    load_test = load_k6.run(url)
+    if load_test.get("error"):
+        errors.append({"source": "load_k6", "message": load_test.pop("error")})
+    else:
+        load_test.pop("error", None)
+
+    # 5. AI Synthesis & Scoring (Gemma 27B / Gemini)
+    print("[Auditor] Running AI audit synthesis and scoring...")
+    ai_analysis = ai_gemini.summarise(
+        target=url,
+        performance=perf,
+        load_test=load_test,
+        security_findings=security_res.get("security_findings", [])
     )
+    if ai_analysis.get("error"):
+        errors.append({"source": "ai_gemini", "message": ai_analysis.get("error")})
 
-    output_path = (
-        "output/security_results.json"
-    )
+    wall_end = time.perf_counter()
+    duration_ms = round((wall_end - wall_start) * 1000, 1)
 
-    with open(
-        output_path,
-        "w",
-        encoding="utf-8"
-    ) as file:
+    # Unified payload
+    final_payload = {
+        "target": url,
+        "scanned_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "scan_duration_ms": duration_ms,
+        "scores": {
+            "security_score": ai_analysis.get("security_score", 80),
+            "performance_score": ai_analysis.get("performance_score", 75),
+            "overall_score": ai_analysis.get("overall_score", 78),
+            "overall_health": ai_analysis.get("overall_health", "warning")
+        },
+        "security": security_res,
+        "performance": perf,
+        "load_test": load_test,
+        "ai_analysis": ai_analysis,
+        # Backward compatibility aliases
+        "ai_summary": {
+            "overall_health": ai_analysis.get("overall_health"),
+            "summary": ai_analysis.get("summary"),
+            "top_issues": ai_analysis.get("top_issues", []),
+            "generated_by": ai_analysis.get("generated_by")
+        },
+        "errors": errors
+    }
 
-        json.dump(
-            result,
-            file,
-            indent=2
-        )
+    # Save to output files
+    save_results(final_payload)
+
+    print(f"[Auditor] Scan complete in {duration_ms/1000:.1f}s.")
+    return final_payload
+
+
+def save_results(result: dict) -> str:
+    """
+    Saves final audit results to output directory for caching and export.
+    """
+    os.makedirs("output", exist_ok=True)
+
+    output_path = "output/scan_results.json"
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+
+    # Also save collaborator's security_results.json for compatibility
+    if "security" in result:
+        with open("output/security_results.json", "w", encoding="utf-8") as f:
+            json.dump(result["security"], f, indent=2)
 
     return output_path
 
 
 if __name__ == "__main__":
+    print("\n" + "=" * 50)
+    print("      SiteSentinel & SiteAudit Unified Scanner")
+    print("=" * 50 + "\n")
 
-    print(
-        "\n"
-        "====================================\n"
-        "        SiteSentinel Scanner\n"
-        "====================================\n"
-    )
+    target = input("Enter target URL: ").strip()
+    if not target:
+        target = "https://example.com"
 
-    target = input(
-        "Enter target URL: "
-    ).strip()
-
-    print(
-        "\n[SiteSentinel] Scan started...\n"
-    )
-
-    # Run complete security pipeline
-    result = run_security_scan(
-        target
-    )
-
-    # Save final results
-    output_path = save_results(
-        result
-    )
-
-    # =================================
-    # Final Summary
-    # =================================
-
-    print(
-        "\n"
-        "====================================\n"
-        "            Scan Complete\n"
-        "===================================="
-    )
-
-    if result.get("reachable"):
-
-        summary = result.get(
-            "scan_summary",
-            {}
-        )
-
-        severity = summary.get(
-            "severity_counts",
-            {}
-        )
-
-        print(
-            f"\nTarget: "
-            f"{result['final_url']}"
-        )
-
-        print(
-            f"HTTP Status: "
-            f"{result['status_code']}"
-        )
-
-        print(
-            f"HTTPS: "
-            f"{result['https']}"
-        )
-
-        print(
-            f"Response Time: "
-            f"{result['response_time_ms']} ms"
-        )
-
-        print(
-            "\n--- Findings ---"
-        )
-
-        print(
-            f"Manual Scanner: "
-            f"{summary.get('manual_findings', 0)}"
-        )
-
-        print(
-            f"OWASP ZAP: "
-            f"{summary.get('zap_findings', 0)}"
-        )
-
-        print(
-            f"Final Findings: "
-            f"{summary.get('total_findings', 0)}"
-        )
-
-        print(
-            "\n--- Severity ---"
-        )
-
-        print(
-            f"High: "
-            f"{severity.get('high', 0)}"
-        )
-
-        print(
-            f"Medium: "
-            f"{severity.get('medium', 0)}"
-        )
-
-        print(
-            f"Low: "
-            f"{severity.get('low', 0)}"
-        )
-
-        print(
-            f"Info: "
-            f"{severity.get('info', 0)}"
-        )
-
-    else:
-
-        print(
-            "\nTarget could not be reached."
-        )
-
-        print(
-            f"Error: "
-            f"{result.get('error')}"
-        )
-
-    print(
-        f"\nFinal results saved to:\n"
-        f"{output_path}"
-    )
-
-    print(
-        "\n====================================\n"
-    )
+    res = scan(target)
+    scores = res.get("scores", {})
+    print("\n--- RESULTS ---")
+    print(f"Target:            {res['target']}")
+    print(f"Security Score:    {scores.get('security_score')}/100")
+    print(f"Performance Score: {scores.get('performance_score')}/100")
+    print(f"Overall Score:     {scores.get('overall_score')}/100")
+    print(f"Health:            {scores.get('overall_health')}")
+    print(f"AI Summary:        {res.get('ai_analysis', {}).get('summary')}")
+    print(f"Saved to:          output/scan_results.json\n")

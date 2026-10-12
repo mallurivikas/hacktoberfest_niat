@@ -1,0 +1,10 @@
+flask
+flask-cors
+requests
+google-genai
+google-generativeai
+python-dotenv
+
+# External binary (not pip installable) — install with: winget install k6
+# k6 >= 0.50 required
+# k6
