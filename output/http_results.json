@@ -1,0 +1,49 @@
+{
+  "target": "https://malluri-vikas-portfolio.vercel.app/",
+  "reachable": true,
+  "status_code": 200,
+  "final_url": "https://malluri-vikas-portfolio.vercel.app/",
+  "https": true,
+  "response_time_ms": 560.87,
+  "redirect_count": 0,
+  "redirect_chain": [],
+  "headers": {
+    "Age": "0",
+    "Cache-Control": "public, max-age=0, must-revalidate",
+    "Content-Encoding": "gzip",
+    "Content-Type": "text/html; charset=utf-8",
+    "Date": "Mon, 12 Oct 2026 06:43:21 GMT",
+    "Server": "Vercel",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+    "X-Vercel-Cache": "MISS",
+    "X-Vercel-Id": "bom1::iad1::2bq9m-1791787401246-d0532c5e86a9",
+    "Transfer-Encoding": "chunked"
+  },
+  "cookies": [],
+  "security_findings": [
+    {
+      "title": "Content Security Policy Missing",
+      "severity": "medium",
+      "evidence": "Content-Security-Policy header was not found.",
+      "source": "SiteSentinel"
+    },
+    {
+      "title": "MIME Sniffing Protection Missing",
+      "severity": "low",
+      "evidence": "X-Content-Type-Options: nosniff was not found.",
+      "source": "SiteSentinel"
+    },
+    {
+      "title": "Clickjacking Protection Missing",
+      "severity": "medium",
+      "evidence": "Neither X-Frame-Options nor a CSP frame-ancestors directive was found.",
+      "source": "SiteSentinel"
+    },
+    {
+      "title": "Server Information Exposed",
+      "severity": "info",
+      "evidence": "Server header exposes: Vercel",
+      "source": "SiteSentinel"
+    }
+  ]
+}
