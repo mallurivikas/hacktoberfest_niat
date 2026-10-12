@@ -59,7 +59,7 @@ def run_zap_scan(url):
         proc = subprocess.run(
             command,
             check=False,
-            timeout=120
+            timeout=300
         )
     except Exception as error:
         print(f"[ZAP] Failed to run: {error}")
